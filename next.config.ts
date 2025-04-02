@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   images: {
     domains: ["cdn.builder.io"],
   },
+  trailingSlash: true,
 };
 
 export default nextConfig;
