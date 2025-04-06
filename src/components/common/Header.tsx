@@ -10,28 +10,23 @@ interface NavigationItem {
 }
 
 const navigationItems: NavigationItem[] = [
-  {
-    icon: "/icons/clipboard.svg",
-    label: "ダッシュボード",
-    href: "/dashboard_top",
-  },
   { icon: "/icons/clipboard.svg", label: "マイページ", href: "/home" },
-  {
-    icon: "/icons/mail.svg",
-    label: "メッセージ",
-    notificationCount: 5,
-    href: "/message",
-  },
-  { icon: "/icons/user.svg", label: "プロフィール", href: "/profile_test" },
+
   {
     icon: "/icons/search.svg",
     label: "案件登録",
     href: "/project_registration",
   },
   {
-    icon: "/icons/search.svg",
-    label: "案件検索",
-    href: "/search_researcher_results",
+    icon: "/icons/mail.svg",
+    label: "メッセージ",
+    notificationCount: 5,
+    href: "/message",
+  },
+  {
+    icon: "/icons/clipboard.svg",
+    label: "ダッシュボード",
+    href: "/dashboard_top",
   },
 ];
 
