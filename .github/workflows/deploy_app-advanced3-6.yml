@@ -22,57 +22,38 @@ jobs:
           npm install
           npm run build
       
-      # Show what's in the standalone directory for debugging
-      - name: Debug Next.js output
+      # Simple preparation focusing on just what's needed
+      - name: Prepare standalone Next.js deployment
         run: |
-          echo "Next.js build output:"
-          ls -la .next
-          echo "Standalone directory contents:"
-          ls -la .next/standalone || echo "No standalone directory found"
-      
-      # Prepare the deployment package with correct structure
-      - name: Prepare deployment package
-        run: |
-          # First copy the exact standalone output
-          mkdir -p nextapp
-          cp -r .next/standalone/* nextapp/
+          # Create basic deployment directory
+          mkdir -p deployment
           
-          # Ensure node_modules is included
-          if [ ! -d "nextapp/node_modules" ]; then
-            echo "Copying node_modules"
-            cp -r node_modules nextapp/
-          fi
+          # Copy just the necessary files
+          cp -r .next/standalone/* deployment/
+          mkdir -p deployment/.next/static
+          cp -r .next/static deployment/.next/
           
-          # Critical: Next.js needs .next/static in the correct location
-          mkdir -p nextapp/.next/static
-          cp -r .next/static nextapp/.next/
+          # Copy critical configuration files
+          cp web.config deployment/
+          cp server.js deployment/
           
           # Copy public directory if it exists
           if [ -d "public" ]; then
-            cp -r public nextapp/
+            cp -r public deployment/
           fi
-          
-          # Copy server.js and web.config
-          cp server.js nextapp/
-          cp web.config nextapp/
-          
-          # Create a simple test file to verify deployment
-          echo "<html><body><h1>Deployment Test</h1><p>This file should be accessible.</p></body></html>" > nextapp/test.html
       
-      # Create the zip file from the prepared directory
-      - name: Create deployment zip
+      # Package just what we need
+      - name: Zip deployment package
         run: |
-          cd nextapp
-          zip -r ../nextapp.zip .
+          cd deployment
+          zip -r ../release.zip ./*
           cd ..
       
-      # Upload the artifact for deployment
-      - name: Upload artifact for deployment
+      - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: nextapp.zip
-  
+          path: release.zip
   deploy:
     runs-on: ubuntu-latest
     needs: build
@@ -85,11 +66,13 @@ jobs:
         with:
           name: node-app
       
+      # Extract directly to site directory
       - name: Unzip artifact for deployment
         run: |
-          mkdir site
-          unzip nextapp.zip -d site
+          mkdir -p site
+          unzip release.zip -d site
       
+      # Deploy to Azure with simpler configuration
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
@@ -100,7 +83,7 @@ jobs:
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_F64A9934CBB84623AD05EF75A343FF4D }}
         continue-on-error: true
       
-      # Retry logic if needed
+      # Keep retry logic
       - name: Retry deployment if failed
         if: steps.deploy-to-webapp.outcome == 'failure'
         run: |
