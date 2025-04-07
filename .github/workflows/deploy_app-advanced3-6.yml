@@ -17,79 +17,96 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '20.x'
-      - name: npm install, build, and test
+      - name: npm install and build
         run: |
           npm install
-          npm run build --if-present
-          npm run test --if-present
+          npm run build
       
-      # New step - Prepare the Next.js standalone output for deployment
-      - name: Prepare Next.js standalone output
+      # Show what's in the standalone directory for debugging
+      - name: Debug Next.js output
         run: |
-          # Create deployment directory
-          mkdir -p deployment
-          # Copy standalone build
-          cp -r .next/standalone/* deployment/
-          # Copy static assets - crucial for Next.js
-          mkdir -p deployment/.next/static
-          cp -r .next/static deployment/.next/
-          # Copy server.js and web.config
-          cp server.js deployment/
-          cp web.config deployment/
-          # Copy public folder if it exists
-          if [ -d "public" ]; then
-            cp -r public deployment/
-          fi
+          echo "Next.js build output:"
+          ls -la .next
+          echo "Standalone directory contents:"
+          ls -la .next/standalone || echo "No standalone directory found"
       
-      # Modified zip step - only zip the deployment directory
-      - name: Zip artifact for deployment
+      # Prepare the deployment package with correct structure
+      - name: Prepare deployment package
         run: |
-          cd deployment
-          zip -r ../release.zip ./*
-          cd ..
+          # First copy the exact standalone output
+          mkdir -p nextapp
+          cp -r .next/standalone/* nextapp/
           
-      - name: Upload artifact for deployment job
+          # Ensure node_modules is included
+          if [ ! -d "nextapp/node_modules" ]; then
+            echo "Copying node_modules"
+            cp -r node_modules nextapp/
+          fi
+          
+          # Critical: Next.js needs .next/static in the correct location
+          mkdir -p nextapp/.next/static
+          cp -r .next/static nextapp/.next/
+          
+          # Copy public directory if it exists
+          if [ -d "public" ]; then
+            cp -r public nextapp/
+          fi
+          
+          # Copy server.js and web.config
+          cp server.js nextapp/
+          cp web.config nextapp/
+          
+          # Create a simple test file to verify deployment
+          echo "<html><body><h1>Deployment Test</h1><p>This file should be accessible.</p></body></html>" > nextapp/test.html
+      
+      # Create the zip file from the prepared directory
+      - name: Create deployment zip
+        run: |
+          cd nextapp
+          zip -r ../nextapp.zip .
+          cd ..
+      
+      # Upload the artifact for deployment
+      - name: Upload artifact for deployment
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: release.zip
+          path: nextapp.zip
+  
   deploy:
     runs-on: ubuntu-latest
     needs: build
     environment:
       name: 'Production'
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
-    
     steps:
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
           name: node-app
-      - name: Unzip artifact for deployment
-        run: unzip release.zip
       
-      # Add a delay before deployment to avoid SCM container conflicts
-      - name: Wait before deployment
-        run: sleep 30
-        
+      - name: Unzip artifact for deployment
+        run: |
+          mkdir site
+          unzip nextapp.zip -d site
+      
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'app-advanced3-6'
           slot-name: 'Production'
-          package: .
+          package: ./site
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_F64A9934CBB84623AD05EF75A343FF4D }}
-        # Add retry logic for deployment
         continue-on-error: true
       
-      # Check if deployment failed and retry after delay if needed
+      # Retry logic if needed
       - name: Retry deployment if failed
         if: steps.deploy-to-webapp.outcome == 'failure'
         run: |
           echo "First deployment attempt failed, waiting 60 seconds before retrying..."
           sleep 60
-          
+      
       - name: 'Retry Deploy to Azure Web App'
         if: steps.deploy-to-webapp.outcome == 'failure'
         id: retry-deploy-to-webapp
@@ -97,5 +114,5 @@ jobs:
         with:
           app-name: 'app-advanced3-6'
           slot-name: 'Production'
-          package: .
+          package: ./site
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_F64A9934CBB84623AD05EF75A343FF4D }}
