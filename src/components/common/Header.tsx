@@ -10,7 +10,7 @@ interface NavigationItem {
 }
 
 const navigationItems: NavigationItem[] = [
-  { icon: "/icons/clipboard.svg", label: "マイページ", href: "/home" },
+  { icon: "/icons/clipboard.svg", label: "マイページ", href: "/mypage" },
 
   {
     icon: "/icons/search.svg",
@@ -41,17 +41,10 @@ export const Header: React.FC<HeaderProps> = ({ currentPage = "案件検索" }) 
       <div className="flex items-center pl-5">
         <Link href="/home">
           <Image
-            src="https://cdn.builder.io/api/v1/image/assets/TEMP/9596aba3e41dcacecfce7f89d2d6f34c5ab9cda6"
+            src="/icons/kenq_logo.png"
             width={65}
             height={110}
             alt="Logo"
-            loading="lazy"
-          />
-          <Image
-            src="https://cdn.builder.io/api/v1/image/assets/TEMP/dd8de1f5773c4e53f322e8c2feedc5727b7def4f"
-            width={13}
-            height={13}
-            alt="Logo Detail"
             loading="lazy"
           />
         </Link>
